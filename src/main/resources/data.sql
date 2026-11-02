@@ -3,8 +3,8 @@
 
 INSERT OR IGNORE INTO users (id, username, password)
 VALUES
-    (1001, 'Alice', '$2b$10$YSnKZxYA5nGSbsRj0A18heVW35Ph4KBDcd4yo/poFBlLLUruOoPBy'),
-    (1002, 'Bob', '$2b$10$ja4BkdP7ZBCBqYEt/s/Y3.HqsnI0rC6uzC71BeVzEJJOpQJRcGLyi');
+    (1001, 'Alice', '$2b$10$W8T8blEfiRH9xQ9nNlE/8.ogTRGxp4UQ5kx8rlOiYkaMaSJiYuTzG'),
+    (1002, 'Bob', '$2b$10$.1SHAXZ.Ddtda/r8wWhZ5.9ocDyUha0PGTj6hYv8eGXWGWU/8Whni');
 
 INSERT OR IGNORE INTO listed_items (id, owner_id, name, description, cost_per_day, status)
 VALUES
