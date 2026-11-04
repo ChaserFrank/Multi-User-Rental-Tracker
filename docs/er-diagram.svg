@@ -40,8 +40,8 @@
   <text class="relation-label" x="358" y="337">1 : N  rents</text>
 
   <!-- listed_items.id -> rentals.item_id -->
-  <path class="relation" d="M 770 188 C 835 188, 835 432, 900 432"/>
-  <text class="relation-label" x="846" y="303">1 : N  records</text>
+  <path class="relation" d="M 645 336 C 645 378, 700 380, 710 420"/>
+  <text class="relation-label" x="676" y="378">1 : N  records</text>
 
   <!-- users.id -> application_logs.user_id -->
   <path class="relation" d="M 286 268 C 500 268, 545 700, 650 700"/>
