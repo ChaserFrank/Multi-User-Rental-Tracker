@@ -425,4 +425,6 @@ Track completion against the actual implementation and passing tests. Features d
 
 ## Team
 
-- Project lead: Francis Kimani
+- Project lead: Jackson Macharia
+- Team member: Francis Kimani
+- Team member: Fidel Shikokoti
