@@ -10,5 +10,5 @@
 - [ ] Tests added/updated and `mvn test` passes locally
 - [ ] No SQL outside `repository.sqlite`, no `System.in/out` outside `transport`
 
-## Reviewer notes
-<!-- Anything you want the reviewer to look at first. -->
+## Self-review notes
+<!-- For a solo change, record the main risk, validation performed, and any deliberate trade-off. If another person reviews this pull request, use this section for their review focus. -->

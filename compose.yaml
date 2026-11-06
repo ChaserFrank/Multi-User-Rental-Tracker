@@ -5,9 +5,11 @@ services:
     tty: true
     environment:
       DB_PATH: /data/rental-tracker.db
-      RENTAL_TRACKER_LOG_PATH: /data/rental-tracker.log
+      RENTAL_TRACKER_LOG_PATH: /logs/rental-tracker.log
     volumes:
       - rental-tracker-data:/data
+      - rental-tracker-logs:/logs
 
 volumes:
   rental-tracker-data:
+  rental-tracker-logs:

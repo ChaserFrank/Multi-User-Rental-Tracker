@@ -1,6 +1,6 @@
 # Database Design
 
-**Owner:** Francis
+**Owner:** Project maintainer
 
 ## 1. Overview
 
@@ -780,43 +780,50 @@ Connection and transaction failures must be logged with useful internal context.
 
 ## 13. Docker and Persistent Database Storage
 
-The application includes a `Dockerfile` for building and running the CLI application in a container.
+The application includes a `Dockerfile` and a root-level `compose.yaml` for building and running the interactive CLI in a container. SQLite is embedded in the application, so no separate database container is required.
 
-The SQLite database must be stored at a path backed by a persistent Docker volume. The application configuration, Docker configuration, and run instructions must agree on that path.
+Compose defines two independent named volumes:
 
-For example, the container can use:
-
-```text
-/data/rental-tracker.db
+```yaml
+volumes:
+  - rental-tracker-data:/data
+  - rental-tracker-logs:/logs
 ```
 
-with a named volume mounted at `/data`.
+The application receives their paths through environment variables:
 
-A representative run command is:
+```yaml
+DB_PATH: /data/rental-tracker.db
+RENTAL_TRACKER_LOG_PATH: /logs/rental-tracker.log
+```
+
+The normal startup command is:
 
 ```bash
-docker run -it \
-  --name rental-tracker \
-  -v rental-tracker-data:/data \
-  multi-user-rental-tracker
+docker compose up --build
 ```
 
-The final command and image configuration must match the actual `Dockerfile` and database-path configuration committed to the repository.
+After the image has been built, a normal run is:
+
+```bash
+docker compose up
+```
 
 ### Persistence requirements
 
-- The database file must be stored inside the mounted volume, not only in the container's writable filesystem.
-- User accounts, password hashes, listed items, and rental history must survive container stops and restarts.
-- Recreating a container while reusing the same named volume must preserve a current-schema database.
-- Schema initialization must succeed when the volume contains no database.
+- The database file must be stored inside `/data`, not only in the container's writable filesystem.
+- The readable application log must be stored inside `/logs`, not only in the container's writable filesystem.
+- User accounts, password hashes, listed items, rental history, and structured application logs must survive container stops and restarts through the database volume.
+- The human-readable log file must survive container replacement through the log volume.
+- Recreating a container while reusing the named volumes must preserve current-schema data and logs.
+- Schema initialization must succeed when the data volume contains no database.
 - Subsequent launches must not fail because existing tables or indexes already exist.
-- Initialization must not overwrite or erase records in a current-schema database. A detected pre-multi-user legacy
-  database is the documented exception and is reset according to the migration policy above.
+- Initialization must not overwrite or erase records in a current-schema database. A detected pre-multi-user legacy database is the documented exception and is reset according to the migration policy above.
 - Database connections must be closed cleanly on application shutdown.
 
-A named Docker volume persists independently of the container. Removing a container does not normally remove the named volume, but explicitly deleting the volume will remove its persisted database data.
+`docker compose down` removes the container and network but preserves both named volumes. `docker compose down -v` explicitly deletes the volumes and therefore resets the local database and readable log history.
 
-The database path must therefore be configurable so local development and Docker deployment can use suitable locations without changing repository code.
+The database and log paths remain configurable so local development, Docker deployment, and tests can use different storage locations without changing repository code.
 
 ---
 
