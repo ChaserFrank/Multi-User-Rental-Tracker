@@ -8,6 +8,7 @@ Built with Java 21+, Maven, SQLite, and a five-layer architecture enforced by Ar
 - [`docs/architecture.md`](docs/architecture.md) — Architecture, state machine, and design decisions.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — Branches, commits, and pull requests.
 - [`docs/database-design.md`](docs/database-design.md) — Database schema and constraint rationale.
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — Automated build, test, and coverage workflow.
 
 ## Features
 
@@ -22,7 +23,7 @@ Built with Java 21+, Maven, SQLite, and a five-layer architecture enforced by Ar
 | Persistence | SQLite with foreign keys, `CHECK` constraints, and a partial unique index for active rentals. |
 | Error handling | Display readable errors, log internal failures, and clean up resources. |
 | Logging | Structured events with timestamps, severity, event names, and contextual fields. |
-| Containerization | Docker execution with persistent SQLite storage. |
+| Containerization | Docker Compose execution with persistent SQLite and application-log storage. |
 
 ## Requirements
 
@@ -107,13 +108,23 @@ This combines the image build and interactive run. It is useful for a first run 
 
 Docker reuses valid cached build layers where possible. Changes to `pom.xml` can invalidate the Maven dependency layer and require additional downloads. An interrupted build may also need to repeat an incomplete step.
 
-#### Database persistence
+#### Persistent volumes
 
-The application stores its SQLite database at `/data/rental-tracker.db` inside the container. The Compose configuration mounts a named volume at `/data`.
+Compose declares two named volumes:
 
-- The database persists when the application exits and its temporary `docker compose run` container is removed.
-- Each developer has a separate local database volume. Data is not automatically shared between computers.
-- `docker compose down` removes Compose-managed containers and networks but preserves named volumes.
+| Volume | Container path | Contents |
+|---|---|---|
+| `rental-tracker-data` | `/data` | SQLite database at `/data/rental-tracker.db` |
+| `rental-tracker-logs` | `/logs` | Readable application log at `/logs/rental-tracker.log` |
+
+The paths are supplied through environment variables:
+
+```yaml
+DB_PATH: /data/rental-tracker.db
+RENTAL_TRACKER_LOG_PATH: /logs/rental-tracker.log
+```
+
+The database and readable log survive container replacement, `docker compose down`, and image rebuilds. Each developer has separate local Docker volumes; data is not shared automatically between computers.
 
 **Warning:** `docker compose down -v` deletes the Compose-managed named volume and its database data. Use it only when you intentionally want to reset the database.
 
@@ -172,6 +183,7 @@ If the application fails to start, inspect the error output before rebuilding or
 #### Docker image design
 
 The Dockerfile uses a multi-stage build. Maven and the JDK compiler are used during the build stage, while the final image uses a Java runtime. Maven dependencies are downloaded in a separate build layer so Docker can reuse that layer when the POM remains unchanged.
+
 
 ## Project structure
 
@@ -356,6 +368,20 @@ These examples illustrate the intended format; actual output depends on the logg
 
 Log significant rental events, validation failures, exceptions, and relevant database lifecycle events. Never log plaintext passwords, password hashes, or other sensitive authentication details.
 
+## Continuous integration
+
+The repository contains a GitHub Actions workflow at `.github/workflows/ci.yml`. It runs on every branch push and on pull requests targeting `main`. Each run starts from a clean checkout, installs Java 21, restores the Maven dependency cache, builds the application, and runs the complete test suite. A failing test fails the workflow.
+
+The workflow uploads the generated JaCoCo HTML report as a downloadable `jacoco-report` artifact, including when the build fails after coverage generation. The local equivalent is:
+
+```bash
+mvn clean package
+```
+
+The workflow file is platform-specific. This repository currently points to a Gitea remote, so the file will execute automatically when the project is mirrored to GitHub or run on a compatible GitHub Actions service. If the project remains on Gitea, the equivalent Gitea Actions configuration must be enabled there.
+
+CI does not by itself prevent a merge. For reproducible solo-project history, the maintainer may protect `main` by disabling direct pushes, requiring pull requests, and marking the successful CI check as a required status check. The exact check name should be selected after the first workflow run.
+
 ## Testing and coverage
 
 Tests should cover CRUD operations, state transitions, authentication, validation, ownership enforcement, logging, failure handling, and resource cleanup.
@@ -388,10 +414,10 @@ The completed project must include:
 
 - A working CLI application and passing tests.
 - A JaCoCo coverage report.
-- A Dockerfile and persistent SQLite volume configuration.
+- A Dockerfile and Compose configuration with separate persistent SQLite and application-log volumes.
 - `src/main/resources/data.sql` with at least two users and six listed items distributed across them, applied automatically at startup without overwriting existing data.
 - An ER diagram showing all four tables, their columns, types, constraints, and relationships.
-- Git history demonstrating teamwork through reviewed pull requests, focused commits, and clear commit messages.
+- Git history demonstrating focused commits, clear commit messages, documented decisions, and reproducible validation. Pull requests may be used for CI and self-review history.
 
 ## Project status
 
@@ -399,6 +425,4 @@ Track completion against the actual implementation and passing tests. Features d
 
 ## Team
 
-- Project lead: Jackson Macharia
-- Team member: Francis Kimani
-- Team member: Fidel Shikokoti
+- Project lead: Francis Kimani

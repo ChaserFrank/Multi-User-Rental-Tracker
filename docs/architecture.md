@@ -1,6 +1,6 @@
 # Architecture
 
-Single source of truth for the team. If code and this file disagree, fix one of them in the same PR. Every rule below carries its why, so a rule can be challenged on its reasoning rather than ignored.
+Single source of truth for the project. If code and this file disagree, fix one of them in the same change. Every rule below carries its why, so a rule can be challenged on its reasoning rather than ignored.
 
 The application uses a five-layer architecture to support multiple authenticated users.
 
@@ -53,24 +53,13 @@ The structured logger is a shared cross-cutting component. All layers use a cons
 
 The Service layer must also enforce business rules independently of the Transport layer. A menu that hides an unauthorised operation is not a substitute for a service-level ownership check.
 
-## 2. Package ownership
+## 2. Project ownership and self-review
 
-Ownership means "primary author and final say on shape", not "only person allowed to touch it". Changes to a contract owned by someone else need that owner as reviewer.
+This is a solo-maintained project. The project maintainer owns the complete application, including the domain, service, transport, repository, infrastructure, Docker, CI, and documentation layers.
 
-## 2. Package ownership
+Ownership here means responsibility for keeping the implementation, tests, architecture rules, deployment configuration, and documentation consistent. It does not remove the need for review: before merging a change, the maintainer performs a self-review of the diff, runs the relevant tests, checks `ArchitectureTest`, and records important trade-offs.
 
-Ownership means "primary author and final say on shape", not "only person allowed to touch it". Changes to a contract or file owned by someone else need that owner as reviewer.
-
-| Package / file | Owner | Reviewer(s) |
-|---|---|---|
-| `infrastructure/`, `repository/`, `Dockerfile`, Docker configuration | Francis | Jack, Fidel |
-| `domain/`, `exception/` | Jack and Francis (shared ownership) | Fidel |
-| `service/` | Jack | Francis, Fidel |
-| `transport/`, `Main.java` | Fidel | Francis, Jack |
-
-All team members remain responsible for reviewing integration changes and keeping the documented contracts consistent with the implementation.
-
-All team members are responsible for writing tests for the sections they work on.
+Pull requests may still be used for CI history and an auditable review point, but a second owner or mandatory external reviewer is not required for this solo project.
 
 
 ## 3. Item state machine
@@ -142,7 +131,7 @@ The Transport layer presents menus, collects input, and displays results. The Se
 | Confirm a return | `RentalService.confirmReturn(...)` | Verify ownership, close rental, update item state appropriately |
 | Exit | Transport/application shutdown | End the authenticated session and close resources |
 
-Exact method signatures must match the repository and service contracts agreed by the team. The table defines responsibilities, not permission to introduce arbitrary user IDs into service calls.
+Exact method signatures must match the repository and service contracts defined by this project. The table defines responsibilities, not permission to introduce arbitrary user IDs into service calls.
 
 ### Ownership rules
 
@@ -198,9 +187,9 @@ A rejected input produces a readable user-facing message. Internal context, incl
 | D9 | Store timestamps as UTC ISO-8601 text `yyyy-MM-dd'T'HH:mm:ss.SSS'Z'`; use `LocalDateTime` in the domain and format for display in Transport. | One UTC representation keeps timestamps consistent and comparisons predictable. |
 | D10 | No static singletons; constructor injection is wired in `Main`. `DatabaseManager` takes a `Path` and owns connection creation/configuration, not a persistent application-wide connection. | Tests can construct the app against a temporary database. Normal operations own a connection for their duration; an active transaction shares one connection across participating repositories and closes it at commit or rollback. |
 | D11 | Console I/O is injected (`ConsoleInput` reads an `InputStream`; menus write to a `PrintStream`). | Injected I/O supports deterministic tests and coverage. ArchUnit forbids `System.in/out/err` outside Transport and `Main`. |
-| D12 | Pagination is applied by repositories with stable ordering, `LIMIT`, `OFFSET`, and one look-ahead row; Transport owns navigation and rendering. | The team agreed to scale from the early stages. Database-level paging bounds memory use and keeps filtering close to SQLite without requiring a separate count query. |
+| D12 | Pagination is applied by repositories with stable ordering, `LIMIT`, `OFFSET`, and one look-ahead row; Transport owns navigation and rendering. | The project scales from the early stages. Database-level paging bounds memory use and keeps filtering close to SQLite without requiring a separate count query. |
 | D13 | Every account can own items and rent other users' items. | Each account can own items and rent items owned by other users. |
-| D14 | Coverage gate is opt-in (`mvn verify -Pcoverage-gate`). | The report is produced during testing, while the gate can be enabled explicitly. The team must verify all new service methods and existing tests before delivery. |
+| D14 | Coverage gate is opt-in (`mvn verify -Pcoverage-gate`). | The report is produced during testing, while the gate can be enabled explicitly. The maintainer must verify all new service methods and existing tests before delivery. |
 | D15 | No self-rental. The renter must differ from the item's owner. | Owners cannot rent their own items. `RentalService` compares stable user IDs. |
 | D16 | `cost_per_day` is represented by `BigDecimal` in Java and stored as `TEXT` in SQLite. | SQLite has no dedicated decimal type; TEXT preserves the exact decimal representation. |
 | D17 | Minimum rental duration is one day. | Zero-day and negative-duration rentals are invalid. Service validation rejects them before persistence. |
@@ -211,7 +200,7 @@ A rejected input produces a readable user-facing message. Internal context, incl
 | D22 | The Service layer enforces ownership on every protected item operation. | Menu filtering is not a security boundary. Calls that bypass Transport must still be rejected. |
 | D23 | Recoverable operation failures return control to the menu with a readable message; unrecoverable startup failures are logged and terminate the application. | Users can recover from invalid input and business-rule failures, while an unusable database must not lead to continued operation in an invalid state. |
 | D24 | Database resources are closed on success and failure. | Exceptions must not leave connections or transactions dangling. |
-| D25 | Docker runs the application with SQLite stored on a mounted persistent volume. | Container replacement, rebuilding, and restarting must not erase application data. |
+| D25 | Docker Compose runs the application with SQLite on `rental-tracker-data:/data` and readable logs on `rental-tracker-logs:/logs`. | Container replacement, rebuilding, and restarting must not erase application data or operational logs. |
 | D26 | Structured events are persisted in `application_logs` with timestamp, level, event name, JSON context, and optional user ID. | Console logging supports live diagnostics, while a bounded database record provides an auditable operational history that survives process and container restarts. Passwords and password hashes are excluded by the logging contract. |
 
 ## 8. Rules for the database layer
@@ -257,7 +246,7 @@ Example events:
 2026-03-15T02:14:38Z | ERROR | db.query          | op=rental.create error=constraint_violation
 ```
 
-The exact logger implementation and output destination must be consistent with the chosen logging dependency and team configuration.
+The exact logger implementation and output destination must be consistent with the chosen logging dependency and project configuration.
 
 Required logging behaviour:
 
@@ -290,13 +279,14 @@ Each test should establish known data, perform one operation, and verify the res
 - Tests must pass in any order without shared state.
 - Every new service-layer method must have tests.
 - The original test suite must continue to pass.
-- JaCoCo generates the coverage report; the team aims for 100% line and branch coverage and must explain any remaining gaps.
+- JaCoCo generates the coverage report; the project aims for 100% line and branch coverage and must explain any remaining gaps.
+- The committed CI workflow builds the application, runs the full suite, and uploads the coverage report on every branch push and pull request to `main`.
 
 ## 11. Container configuration and persistent data
 
 The repository includes a `Dockerfile` that builds and runs the application.
 
-The SQLite database must live at a path backed by a Docker-mounted volume. The database path used by the application, the Docker configuration, and the run instructions must agree.
+The SQLite database and readable application log must live at paths backed by Docker-mounted named volumes. The `DB_PATH` and `RENTAL_TRACKER_LOG_PATH` values used by the application, the Docker configuration, and the run instructions must agree.
 
 Stopping or rebuilding a container must not delete persisted users, items, or rentals. Database initialisation must work when the volume is empty and must not fail by attempting to recreate tables that already exist.
 
@@ -308,15 +298,16 @@ The repository must contain:
 
 - A working CLI application with all required tests passing.
 - A JaCoCo coverage report.
-- A `Dockerfile` and persistent volume configuration.
+- A `Dockerfile` and Compose configuration with separate named database and log volumes.
+- A committed CI workflow that builds the application, runs all tests, and uploads JaCoCo coverage.
 - A seeded database with at least two users and six listed items distributed across them.
-- An ER diagram covering `users`, `listed_items`, and `rentals`, including columns, types, constraints, and relationships.
-- Git history demonstrating teamwork through reviewed pull requests, small focused commits, and clear commit messages.
+- An ER diagram covering `users`, `listed_items`, `rentals`, and `application_logs`, including columns, types, constraints, and relationships.
+- Git history demonstrating focused commits, clear commit messages, documented decisions, and reproducible validation. Pull requests may be used for CI and self-review history.
 
 The demonstration must cover registration, logout and login; listing and renting another user's item; a rejected input with a readable message and corresponding log entry; confirming a return as the owner; persistence after a Docker restart; and the test suite.
 
-## 13. Decisions made as a team
+## 13. Project decisions
 
 Record additional architectural decisions here as they are agreed upon. Each entry should include the decision, why it was made, and how it is enforced or tested.
 
-Do not document an implementation choice as settled until the team has agreed on it and the code reflects it. If an existing decision changes, update the relevant decision rather than silently leaving conflicting rules in the document.
+Do not document an implementation choice as settled until the maintainer has reviewed the reasoning and the code reflects it. If an existing decision changes, update the relevant decision rather than silently leaving conflicting rules in the document.
